@@ -269,7 +269,7 @@ const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     updateUserAddress(orderDetails.shippingAddress);
 
     const totalAmount = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
+    
     const orderData = {
         items: cart,
         totalAmount,

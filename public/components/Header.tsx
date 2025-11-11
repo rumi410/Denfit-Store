@@ -173,7 +173,9 @@ const Header: React.FC = () => {
                                      <p className="text-xs text-gray-500">{user.email}</p>
                                  </div>
                                  <button onClick={() => { openModal('profile'); setIsUserMenuOpen(false); }} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My Profile</button>
+                                 
                                  <button onClick={() => { fetchUserOrders(); setIsUserMenuOpen(false); }} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My Orders</button>
+                                 
                                  <button onClick={() => { logout(); setIsUserMenuOpen(false); }} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</button>
                              </div>
                          )}

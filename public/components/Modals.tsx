@@ -329,7 +329,7 @@ export const CheckoutModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
 
 export const OrdersModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { orders = [], loading, error, currencySymbol, convertCurrency } = useAppContext();
+    const { orders = [], loading, error, convertCurrency, currencySymbol } = useAppContext();
     
     const OrderStatusTracker: React.FC<{ order: Order }> = ({ order }) => {
         const isConfirmed = ['Confirmed', 'Shipped', 'Delivered'].includes(order.status);

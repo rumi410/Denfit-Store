@@ -2,36 +2,31 @@
 
 import { Product, Order, User, Review } from '../types.ts';
 
-// Using the absolute URL is essential for local development when frontend and backend are on different servers/ports.
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = '/api';
 
 const handleResponse = async (response: Response) => {
-    // For 204 No Content, we don't need to parse JSON
     if (response.status === 204) {
         return;
     }
     
-    const responseText = await response.text();
-    let data;
-
-    try {
-        data = JSON.parse(responseText);
-    } catch (error) {
-        console.error("Failed to parse JSON response from server:", responseText);
-        // If the response isn't OK and isn't JSON, it's a server-side error (e.g., HTML error page).
+    const contentType = response.headers.get("content-type");
+    if (contentType && contentType.indexOf("application/json") !== -1) {
+        const data = await response.json();
         if (!response.ok) {
-            return Promise.reject(new Error(`Server Error: ${response.status} ${response.statusText}. Check server logs for more details.`));
+            const error = (data && data.message) || response.statusText;
+            return Promise.reject(new Error(error));
         }
-        // If the response is OK but not JSON, it's an unexpected response format.
-        return Promise.reject(new Error("Received a non-JSON response from the server."));
+        return data;
+    } else {
+        const text = await response.text();
+        if (!response.ok) {
+            // This will now show the HTML error page content for easier debugging
+            console.error("Server returned a non-JSON error response:", text);
+            return Promise.reject(new Error(`Server Error: ${response.status} ${response.statusText}. See console for details.`));
+        }
+        // This case is unlikely for a well-behaved API but good to have.
+        return Promise.reject(new Error("Received an unexpected non-JSON response from the server."));
     }
-
-    if (!response.ok) {
-        // The backend sends messages like { message: '...' } on error
-        const error = (data && data.message) || response.statusText;
-        return Promise.reject(new Error(error));
-    }
-    return data;
 };
 
 export const fetchProducts = async (): Promise<Product[]> => {
@@ -57,9 +52,8 @@ export const signupUser = async (userData: any): Promise<{ token: string, user: 
     return handleResponse(response);
 }
 
-// NOTE: The provided backend has no endpoint for submitting reviews.
-// This function will remain a mock that resolves locally.
-// For a full implementation, a backend endpoint like `POST /api/products/:id/reviews` is needed.
+// NOTE: The backend needs an endpoint like `POST /api/products/:id/reviews` for this to work fully.
+// This function remains a local mock.
 export const submitReview = (productId: string, reviewData: { rating: number, comment: string }, user: User): Promise<Review> => {
     console.warn("Review submission is mocked. Backend endpoint for reviews is not implemented.");
     return new Promise((resolve) => {
