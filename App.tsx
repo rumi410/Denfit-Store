@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode, useRef, useMemo } from 'react';
-import { Product, CartItem, WishlistItem, User, Review, Order, StaticPageType, ShippingAddress } from './types.ts';
-import { fetchProducts, loginUser, signupUser, submitReview, createOrder, fetchMyOrders } from './services/api.ts';
-import Header from './components/Header.tsx';
-import HomePage from './components/HomePage.tsx';
-import Footer from './components/Footer.tsx';
-import { LoginModal, CartModal, WishlistModal, ProductDetailModal, CheckoutModal, OrdersModal, StaticContentModal, ProfileModal } from './components/Modals.tsx';
-import { WhatsAppIcon } from './components/Icons.tsx';
+import { Product, CartItem, WishlistItem, User, Review, Order, StaticPageType, ShippingAddress } from './types';
+import { fetchProducts, loginUser, signupUser, submitReview, createOrder, fetchMyOrders } from './services/api';
+import Header from './components/Header';
+import HomePage from './components/HomePage';
+import Footer from './components/Footer';
+import { LoginModal, CartModal, WishlistModal, ProductDetailModal, CheckoutModal, OrdersModal, StaticContentModal, ProfileModal } from './components/Modals';
+import { WhatsAppIcon } from './components/Icons';
 
 type ModalType = 'login' | 'cart' | 'wishlist' | 'product' | 'checkout' | 'orders' | 'static' | 'profile' | null;
 

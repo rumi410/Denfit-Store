@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAppContext } from '../App.tsx';
-import ProductCard from './ProductCard.tsx';
-import { Product } from '../types.ts';
-import { ChevronLeftIcon, ChevronRightIcon, VerifiedIcon, GoogleIcon, StarIcon } from './Icons.tsx';
+import { useAppContext } from '../App';
+import ProductCard from './ProductCard';
+import { Product } from '../types';
+import { ChevronLeftIcon, ChevronRightIcon, VerifiedIcon, GoogleIcon, StarIcon } from './Icons';
 
 const HeroBanner: React.FC = () => {
     const { setFilter } = useAppContext();

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAppContext } from '../App.tsx';
-import { DenfitLogo, SearchIcon, UserIcon, HeartIcon, CartIcon, ChevronDownIcon, HamburgerIcon, CloseIcon, FireIcon } from './Icons.tsx';
-import { Product } from '../types.ts';
+import { useAppContext } from '../App';
+import { DenfitLogo, SearchIcon, UserIcon, HeartIcon, CartIcon, ChevronDownIcon, HamburgerIcon, CloseIcon, FireIcon } from './Icons';
+import { Product } from '../types';
 
 const NavItem: React.FC<{
     label: string;

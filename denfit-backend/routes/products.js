@@ -1,0 +1,25 @@
+import express from 'express';
+import {
+  createProduct,
+  getProducts,
+  getProductById,
+  updateProduct,
+  deleteProduct,
+  createProductReview
+} from '../controllers/productController.js';
+import { protect } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// Public routes
+router.route('/').get(getProducts);
+router.route('/:id').get(getProductById);
+
+// Private routes
+router.route('/:id/reviews').post(protect, createProductReview);
+
+// Protected (admin) routes
+router.route('/').post(protect, createProduct);
+router.route('/:id').put(protect, updateProduct).delete(protect, deleteProduct);
+
+export default router;

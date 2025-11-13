@@ -11,14 +11,15 @@ const NavItem: React.FC<{
     const [isOpen, setIsOpen] = useState(false);
     return (
         <div className="relative" onMouseEnter={() => setIsOpen(true)} onMouseLeave={() => setIsOpen(false)}>
-            <button onClick={() => onClick(label, 'All')} className="flex items-center space-x-1 py-2 text-gray-600 hover:text-denfit-blue transition-colors">
+            <button onClick={() => onClick(label, 'All')} className="flex items-center space-x-1 py-2 text-gray-700 hover:text-denfit-blue transition-colors">
                 <span>{label}</span>
                 {subItems && <ChevronDownIcon />}
             </button>
             {subItems && isOpen && (
                 <div className="absolute top-full left-0 mt-1 w-48 bg-white shadow-lg rounded-md py-2 z-20">
+                    <a onClick={() => onClick(label, 'All')} className="w-full text-left block px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-100 cursor-pointer">All {label}</a>
                     {subItems.map(item => (
-                        <button key={item.name} onClick={() => onClick(label, item.subCategory)} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">{item.name}</button>
+                        <a key={item.name} onClick={() => onClick(label, item.subCategory)} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">{item.name}</a>
                     ))}
                 </div>
             )}
@@ -27,12 +28,11 @@ const NavItem: React.FC<{
 };
 
 const Header: React.FC = () => {
-    // FIX: Destructure fetchUserOrders from useAppContext to make it available in the component.
     const { cart, wishlist, user, openModal, setFilter, logout, currency, setCurrency, fetchUserOrders } = useAppContext();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const { products } = useAppContext();
+    const { products, convertCurrency } = useAppContext();
     const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
@@ -42,7 +42,7 @@ const Header: React.FC = () => {
         Jeans: [{ name: 'Baggy Jeans', subCategory: 'Baggy Jeans' }, { name: 'Denim Jeans', subCategory: 'Denim Jeans' }],
         Shirts: [{ name: 'Formal Shirts', subCategory: 'Formal Shirts' }, { name: 'Casual Shirts', subCategory: 'Casual Shirts' }],
         Jackets: [{ name: 'Winter Jackets', subCategory: 'Winter Jackets' }, { name: 'Summer Jackets', subCategory: 'Summer Jackets' }],
-        Hoodies: [{ name: 'Pullovers', subCategory: 'Pullovers' }, { name: 'Zip-Up Hoodies', subCategory: 'Zip-Up Hoodies' }, { name: 'Winter Hoodies', subCategory: 'Winter Hoodies' }],
+        Hoodies: [{ name: 'Pullovers', subCategory: 'Pullovers' }, { name: 'Zip-Up Hoodies', subCategory: 'Zip-Up Hoodies' }],
     }
 
     const handleFilterClick = (category: string, subCategory: string) => {
@@ -52,12 +52,12 @@ const Header: React.FC = () => {
             collectionsSection.scrollIntoView({ behavior: 'smooth' });
         }
         setIsMobileMenuOpen(false);
+        setIsSearchActive(false);
     };
 
     const handleTrendingSearchClick = (term: string) => {
-        const category = Object.keys(navCategories).find(cat => term.toLowerCase().includes(cat.toLowerCase().slice(0, -1))) || term;
+        const category = term === 'Denim' ? 'Jeans' : term;
         handleFilterClick(category, 'All');
-        setIsSearchActive(false);
         setSearchTerm('');
     };
 
@@ -84,17 +84,18 @@ const Header: React.FC = () => {
         };
     }, []);
 
-    const trendingSearches = ["Jeans", "Hoodies", "Shirts", "Jackets", "Denim"];
+    const trendingSearches = ["Jeans", "Hoodies", "Shirts", "Jackets"];
     
     const CurrencySelector: React.FC<{ isMobile?: boolean }> = ({ isMobile }) => (
         <div className="relative group">
-            <button className="flex items-center py-2 text-gray-600 hover:text-denfit-blue transition-colors">
+            <button className="flex items-center py-2 text-gray-600 hover:text-denfit-blue transition-colors text-sm">
                 {currency} <ChevronDownIcon />
             </button>
-            <div className={`absolute top-full mt-1 w-24 bg-white shadow-lg rounded-md py-1 z-20 ${isMobile ? 'left-0' : 'right-0'} opacity-0 group-hover:opacity-100 transition-opacity`}>
+            <div className={`absolute top-full mt-1 w-24 bg-white shadow-lg rounded-md py-1 z-20 ${isMobile ? 'left-0' : 'right-0'} opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all`}>
                 <button onClick={() => setCurrency('USD')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">USD</button>
                 <button onClick={() => setCurrency('EUR')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">EUR</button>
                 <button onClick={() => setCurrency('INR')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">INR</button>
+                <button onClick={() => setCurrency('PKR')} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">PKR</button>
             </div>
         </div>
     );
@@ -102,17 +103,27 @@ const Header: React.FC = () => {
     return (
         <header className="bg-white shadow-md sticky top-0 z-30">
             {/* Desktop Header */}
-            <div className="hidden lg:flex container mx-auto px-4 h-20 items-center justify-between">
-                <div className="flex items-center space-x-8">
-                    <a href="/"><DenfitLogo showText={true} /></a>
-                    <div className="relative w-72" ref={searchRef}>
+            <div className="hidden lg:flex container mx-auto px-6 h-20 items-center justify-between">
+                <div className="flex-1 flex justify-start">
+                     <a href="/"><DenfitLogo /></a>
+                </div>
+
+                <nav className="flex-1 flex justify-center items-center space-x-6 font-medium">
+                    <NavItem label="Jeans" subItems={navCategories.Jeans} onClick={handleFilterClick} />
+                    <NavItem label="Shirts" subItems={navCategories.Shirts} onClick={handleFilterClick}/>
+                    <NavItem label="Jackets" subItems={navCategories.Jackets} onClick={handleFilterClick}/>
+                    <NavItem label="Hoodies" subItems={navCategories.Hoodies} onClick={handleFilterClick}/>
+                </nav>
+
+                <div className="flex-1 flex items-center justify-end space-x-6">
+                    <div className="relative w-64" ref={searchRef}>
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <SearchIcon />
                         </div>
                         <input
                             type="text"
-                            placeholder="Search for products..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-denfit-blue bg-white"
+                            placeholder="Search..."
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-1 focus:ring-denfit-blue bg-gray-50 text-gray-900"
                             onFocus={() => setIsSearchActive(true)}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             value={searchTerm}
@@ -137,7 +148,7 @@ const Header: React.FC = () => {
                                                 <img src={p.images[0]} alt={p.name} className="w-12 h-12 object-cover rounded-md mr-4"/>
                                                 <div>
                                                     <p className="font-semibold text-black">{p.name}</p>
-                                                    <p className="text-sm text-gray-600">${p.price.toFixed(2)}</p>
+                                                    <p className="text-sm text-gray-600">{useAppContext().currencySymbol}{convertCurrency(p.price)}</p>
                                                 </div>
                                             </div>
                                         )) : <p className="text-gray-500 text-center py-4">No products found.</p>}
@@ -146,18 +157,8 @@ const Header: React.FC = () => {
                             </div>
                         )}
                     </div>
-                </div>
-
-                <nav className="flex items-center space-x-6 font-medium">
-                    <NavItem label="Jeans" subItems={navCategories.Jeans} onClick={handleFilterClick} />
-                    <NavItem label="Shirts" subItems={navCategories.Shirts} onClick={handleFilterClick}/>
-                    <NavItem label="Jackets" subItems={navCategories.Jackets} onClick={handleFilterClick}/>
-                    <NavItem label="Hoodies" subItems={navCategories.Hoodies} onClick={handleFilterClick}/>
-                </nav>
-
-                <div className="flex items-center space-x-6">
                     <CurrencySelector />
-                    <div className="relative" ref={userMenuRef}>
+                     <div className="relative" ref={userMenuRef}>
                         <button onClick={() => user ? setIsUserMenuOpen(!isUserMenuOpen) : openModal('login')} className="hover:text-denfit-blue transition-colors"><UserIcon /></button>
                          {user && isUserMenuOpen && (
                              <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-20">
@@ -165,6 +166,7 @@ const Header: React.FC = () => {
                                      <p className="font-semibold text-sm">{user.name}</p>
                                      <p className="text-xs text-gray-500">{user.email}</p>
                                  </div>
+                                 <button onClick={() => { openModal('profile'); setIsUserMenuOpen(false); }} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My Profile</button>
                                  <button onClick={() => { fetchUserOrders(); setIsUserMenuOpen(false); }} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My Orders</button>
                                  <button onClick={() => { logout(); setIsUserMenuOpen(false); }} className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</button>
                              </div>
@@ -172,7 +174,7 @@ const Header: React.FC = () => {
                     </div>
                     <button onClick={() => openModal('wishlist')} className="relative hover:text-denfit-blue transition-colors">
                         <HeartIcon />
-                        {wishlist.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">{wishlist.length}</span>}
+                        {wishlist.length > 0 && <span className="absolute -top-1 -right-2 text-xs font-bold text-denfit-blue">{wishlist.length}</span>}
                     </button>
                     <button onClick={() => openModal('cart')} className="relative hover:text-denfit-blue transition-colors">
                         <CartIcon />
@@ -189,23 +191,23 @@ const Header: React.FC = () => {
                         <CurrencySelector isMobile={true}/>
                     </div>
                     <a href="/"><DenfitLogo showText={false} /></a>
-                    <div className="flex items-center space-x-3">
-                         <button onClick={() => user ? fetchUserOrders() : openModal('login')}><UserIcon /></button>
-                         <button onClick={() => openModal('wishlist')} className="relative">
+                    <div className="flex items-center space-x-4">
+                        <button onClick={() => openModal('wishlist')} className="relative">
                             <HeartIcon />
-                            {wishlist.length > 0 && <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">{wishlist.length}</span>}
+                            {wishlist.length > 0 && <span className="absolute -top-1 -right-2 text-xs font-bold text-denfit-blue">{wishlist.length}</span>}
                         </button>
                         <button onClick={() => openModal('cart')} className="relative">
                             <CartIcon />
                              {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-denfit-blue text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">{cart.reduce((sum, item) => sum + item.quantity, 0)}</span>}
                         </button>
+                        <button onClick={() => user ? openModal('profile') : openModal('login')}><UserIcon /></button>
                     </div>
                 </div>
                  <div className="mt-4 relative" ref={searchRef}>
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                         <SearchIcon />
                     </div>
-                    <input type="text" placeholder="Search for products..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-denfit-blue bg-white" onFocus={() => setIsSearchActive(true)}  onChange={(e) => setSearchTerm(e.target.value)} value={searchTerm}/>
+                    <input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-1 focus:ring-denfit-blue bg-gray-50 text-gray-900" onFocus={() => setIsSearchActive(true)}  onChange={(e) => setSearchTerm(e.target.value)} value={searchTerm}/>
                      {isSearchActive && (
                         <div className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl p-4 z-40">
                              {searchTerm.length < 1 ? (
@@ -226,7 +228,7 @@ const Header: React.FC = () => {
                                             <img src={p.images[0]} alt={p.name} className="w-12 h-12 object-cover rounded-md mr-4"/>
                                             <div>
                                                 <p className="font-semibold text-black">{p.name}</p>
-                                                <p className="text-sm text-gray-600">${p.price.toFixed(2)}</p>
+                                                <p className="text-sm text-gray-600">{useAppContext().currencySymbol}{convertCurrency(p.price)}</p>
                                             </div>
                                         </div>
                                     )) : <p className="text-gray-500 text-center py-4">No products found.</p>}
@@ -240,27 +242,36 @@ const Header: React.FC = () => {
             {/* Mobile Menu */}
             {isMobileMenuOpen && (
                  <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsMobileMenuOpen(false)}>
-                    <div className="fixed inset-y-0 left-0 w-4/5 max-w-sm bg-white p-6 z-50 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="fixed inset-y-0 left-0 w-4/5 max-w-sm bg-white p-6 z-50 overflow-y-auto animate-fade-in-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-6">
                             <DenfitLogo/>
                             <button onClick={() => setIsMobileMenuOpen(false)}><CloseIcon/></button>
                         </div>
                         <nav className="flex flex-col space-y-2">
-                            {Object.entries(navCategories).map(([category, subCats]) => (
+                             {Object.entries(navCategories).map(([category, subCats]) => (
                                 <details key={category} className="group">
                                     <summary className="flex justify-between items-center font-medium cursor-pointer list-none py-2">
                                         {category}
                                         <ChevronDownIcon />
                                     </summary>
                                     <div className="pl-4 flex flex-col items-start">
+                                        <a onClick={() => handleFilterClick(category, 'All')} className="py-1 text-gray-700 font-semibold hover:text-denfit-blue cursor-pointer">All {category}</a>
                                         {subCats.map(sub => (
-                                            <button key={sub.name} onClick={() => handleFilterClick(category, sub.subCategory)} className="py-1 text-gray-600 hover:text-denfit-blue">{sub.name}</button>
+                                            <a key={sub.name} onClick={() => handleFilterClick(category, sub.subCategory)} className="py-1 text-gray-600 hover:text-denfit-blue cursor-pointer">{sub.name}</a>
                                         ))}
                                     </div>
                                 </details>
                             ))}
                             <hr className="my-4"/>
-                             {user && <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="text-left w-full py-2 font-medium text-red-500">Logout</button>}
+                            {user ? (
+                                <>
+                                 <button onClick={() => { openModal('profile'); setIsMobileMenuOpen(false); }} className="text-left w-full py-2 font-medium">My Profile</button>
+                                 <button onClick={() => { fetchUserOrders(); setIsMobileMenuOpen(false); }} className="text-left w-full py-2 font-medium">My Orders</button>
+                                 <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="text-left w-full py-2 font-medium text-red-500">Logout</button>
+                                </>
+                            ) : (
+                                <button onClick={() => { openModal('login'); setIsMobileMenuOpen(false); }} className="text-left w-full py-2 font-medium">Login / Sign Up</button>
+                            )}
                         </nav>
                     </div>
                 </div>

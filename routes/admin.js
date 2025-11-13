@@ -1,19 +1,11 @@
-const express = require('express');
+import express from 'express';
+import { getOrders, updateOrderStatus } from '../controllers/orderController.js';
+import { protect } from '../middleware/auth.js';
+
 const router = express.Router();
-const { getOrders, updateOrderStatus } = require('../controllers/orderController');
-const auth = require('../middleware/auth');
 
-// In a real app, you would add an additional middleware to check for an admin role.
-// For now, these routes are protected for any logged-in user.
+// NOTE: These routes would ideally have an additional admin-specific middleware.
+router.get('/orders', protect, getOrders);
+router.put('/orders/:orderId', protect, updateOrderStatus);
 
-// @desc    Get all orders (Admin)
-// @route   GET /api/admin/orders
-// @access  Private/Admin
-router.get('/orders', auth, getOrders);
-
-// @desc    Update order status (Admin)
-// @route   PUT /api/admin/orders/:orderId
-// @access  Private/Admin
-router.put('/orders/:orderId', auth, updateOrderStatus);
-
-module.exports = router;
+export default router;

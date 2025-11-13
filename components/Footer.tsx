@@ -1,7 +1,7 @@
 import React from 'react';
-import { DenfitLogo, InstagramIcon, FacebookIcon, TwitterIcon, YouTubeIcon, TikTokIcon } from './Icons.tsx';
-import { useAppContext } from '../App.tsx';
-import { StaticPageType } from '../types.ts';
+import { DenfitLogo, InstagramIcon, FacebookIcon, TwitterIcon, YouTubeIcon, TikTokIcon } from './Icons';
+import { useAppContext } from '../App';
+import { StaticPageType } from '../types';
 
 const Footer: React.FC = () => {
     const { openModal } = useAppContext();
@@ -29,11 +29,11 @@ const Footer: React.FC = () => {
                         <DenfitLogo showText={true} />
                         <p className="mt-4 text-gray-400 text-sm">Your one-stop shop for premium denim and casual wear. Quality, comfort, and style combined.</p>
                         <div className="flex space-x-4 mt-6">
-                            <a href="#" className="text-social-facebook hover:opacity-80 transition-opacity"><FacebookIcon /></a>
-                            <a href="#" className="text-social-instagram hover:opacity-80 transition-opacity"><InstagramIcon /></a>
-                            <a href="#" className="text-social-twitter hover:opacity-80 transition-opacity"><TwitterIcon /></a>
-                            <a href="#" className="text-social-youtube hover:opacity-80 transition-opacity"><YouTubeIcon /></a>
-                            <a href="#" className="text-social-tiktok hover:opacity-80 transition-opacity"><TikTokIcon /></a>
+                            <a href="#" className="text-gray-400 hover:text-social-facebook transition-colors"><FacebookIcon /></a>
+                            <a href="#" className="text-gray-400 hover:text-social-instagram transition-colors"><InstagramIcon /></a>
+                            <a href="#" className="text-gray-400 hover:text-social-twitter transition-colors"><TwitterIcon /></a>
+                            <a href="#" className="text-gray-400 hover:text-social-youtube transition-colors"><YouTubeIcon /></a>
+                            <a href="#" className="text-gray-400 hover:text-social-tiktok transition-colors"><TikTokIcon /></a>
                         </div>
                     </div>
 

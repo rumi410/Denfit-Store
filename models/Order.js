@@ -1,5 +1,4 @@
-
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
     userId: { 
@@ -8,7 +7,6 @@ const orderSchema = new mongoose.Schema({
         required: true 
     },
     orderItems: [{
-        _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
         name: { type: String, required: true },
         qty: { type: Number, required: true },
         image: { type: String, required: true },
@@ -56,9 +54,9 @@ const orderSchema = new mongoose.Schema({
         type: Date,
     },
 }, {
-    timestamps: true 
+    timestamps: true // Adds createdAt and updatedAt timestamps
 });
 
 const Order = mongoose.model('Order', orderSchema);
 
-module.exports = Order;
+export default Order;

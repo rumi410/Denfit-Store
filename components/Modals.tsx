@@ -1,7 +1,7 @@
 import React, { useState, Fragment, useEffect } from 'react';
-import { useAppContext } from '../App.tsx';
-import { Product, Order, StaticPageType, ShippingAddress } from '../types.ts';
-import { CloseIcon, HeartIcon, StarIcon, CheckCircleIcon, ShippingIcon, ConfirmedIcon, DeliveredIcon } from './Icons.tsx';
+import { useAppContext } from '../App';
+import { Product, Order, StaticPageType, ShippingAddress } from '../types';
+import { CloseIcon, HeartIcon, StarIcon, CheckCircleIcon, ShippingIcon, ConfirmedIcon, DeliveredIcon } from './Icons';
 
 const ModalWrapper: React.FC<{ children: React.ReactNode, onClose: () => void, title: string, size?: 'sm' | 'md' | 'lg' | 'xl' }> = ({ children, onClose, title, size = 'md' }) => {
     const sizeClasses = {
@@ -413,6 +413,12 @@ export const ProfileModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     const { user, updateUserAddress, addToast } = useAppContext();
     const [activeTab, setActiveTab] = useState('details');
     const [address, setAddress] = useState<ShippingAddress>(user?.address || { address: '', city: '', postalCode: '', country: '' });
+
+    useEffect(() => {
+        if(user?.address) {
+            setAddress(user.address);
+        }
+    }, [user]);
 
     const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setAddress({ ...address, [e.target.name]: e.target.value });

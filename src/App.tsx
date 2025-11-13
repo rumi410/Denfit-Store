@@ -1,19 +1,14 @@
-import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode, useRef, useMemo } from 'react';
-import { Product, CartItem, WishlistItem, User, Review, Order } from './types';
+import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import { Product, CartItem, WishlistItem, User, Order, StaticPageType, ShippingAddress } from './types';
 import { fetchProducts, loginUser, signupUser, submitReview, createOrder, fetchMyOrders } from './services/api';
 import Header from './components/Header';
 import HomePage from './components/HomePage';
 import Footer from './components/Footer';
-import { LoginModal, CartModal, WishlistModal, ProductDetailModal, CheckoutModal, OrdersModal, StaticContentModal } from './components/Modals';
-import { WhatsAppIcon } from './components/Icons';
+import { LoginModal, CartModal, WishlistModal, ProductDetailModal, CheckoutModal, OrdersModal, StaticContentModal, ProfileModal, ForgotPasswordModal, BrandReviewModal, NewsletterModal } from './components/Modals';
+import WhatsAppWidget from './components/WhatsAppWidget';
 
-type ModalType = 'login' | 'cart' | 'wishlist' | 'product' | 'checkout' | 'orders' | 'static' | null;
-type StaticPageType = 'About Us' | 'Size Guide' | 'Privacy Policy' | 'Shipping Policy' | 'Return Policy' | null;
-
-interface Toast {
-  id: number;
-  message: string;
-}
+type ModalType = 'login' | 'cart' | 'wishlist' | 'product' | 'checkout' | 'orders' | 'static' | 'profile' | 'forgot_password' | 'brand_review' | 'newsletter' | null;
 
 interface Filter {
   category: string;
@@ -28,24 +23,22 @@ interface AppContextType {
   token: string | null;
   activeModal: ModalType;
   selectedProduct: Product | null;
-  // FIX: Added staticPage to the context type to resolve usage errors in consumer components.
   staticPage: StaticPageType;
   orders: Order[];
   loading: boolean;
   error: string | null;
   filter: Filter;
-  toasts: Toast[];
-  currency: 'USD' | 'EUR' | 'INR';
-  currencySymbol: '$' | '€' | '₹';
-  setCurrency: (currency: 'USD' | 'EUR' | 'INR') => void;
+  currency: 'USD' | 'EUR' | 'INR' | 'PKR';
+  currencySymbol: '$' | '€' | '₹' | 'Rs';
+  setCurrency: (currency: 'USD' | 'EUR' | 'INR' | 'PKR') => void;
   convertCurrency: (price: number) => string;
   setFilter: (filter: Filter) => void;
   addToCart: (product: Product, size: string, color: string) => void;
-  removeFromCart: (productId: string) => void;
-  updateCartQuantity: (productId: string, quantity: number) => void;
+  removeFromCart: (cartItemId: string) => void;
+  updateCartQuantity: (cartItemId: string, quantity: number) => void;
   addToWishlist: (product: Product) => void;
   removeFromWishlist: (productId: string) => void;
-  login: (token: string, user: User) => void;
+  login: (credentials: any) => Promise<void>;
   signup: (userData: any) => Promise<void>;
   logout: () => void;
   openModal: (modal: ModalType, data?: Product | StaticPageType) => void;
@@ -53,7 +46,7 @@ interface AppContextType {
   fetchUserOrders: () => Promise<void>;
   placeOrder: (orderDetails: any) => Promise<void>;
   addReview: (productId: string, reviewData: { rating: number; comment: string; }) => Promise<void>;
-  addToast: (message: string) => void;
+  updateUserAddress: (address: ShippingAddress) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -78,14 +71,11 @@ const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [filter, setFilter] = useState<Filter>({ category: 'All', subCategory: 'All' });
-  const [currency, setCurrency] = useState<'USD' | 'EUR' | 'INR'>('USD');
-  const toastId = useRef(0);
+  const [currency, setCurrency] = useState<'USD' | 'EUR' | 'INR' | 'PKR'>('USD');
 
-  const exchangeRates = { USD: 1, EUR: 0.93, INR: 83.45 };
-  // FIX: Explicitly type currencySymbols to ensure currencySymbol is not inferred as a generic string.
-  const currencySymbols: Record<'USD' | 'EUR' | 'INR', '$' | '€' | '₹'> = { USD: '$', EUR: '€', INR: '₹' };
+  const exchangeRates = { USD: 1, EUR: 0.93, INR: 83.45, PKR: 278.50 };
+  const currencySymbols: Record<'USD' | 'EUR' | 'INR' | 'PKR', '$' | '€' | '₹' | 'Rs'> = { USD: '$', EUR: '€', INR: '₹', PKR: 'Rs' };
   const currencySymbol = currencySymbols[currency];
 
   const convertCurrency = useCallback((price: number) => {
@@ -98,18 +88,21 @@ const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const storedUser = localStorage.getItem('user');
     if (storedToken && storedUser) {
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        (async () => {
+            try {
+                if (storedToken) {
+                    const userOrders = await fetchMyOrders(storedToken);
+                    setOrders(userOrders);
+                }
+            } catch (err) {
+                console.error("Failed to auto-fetch orders:", err);
+            }
+        })();
     }
   }, []);
   
-  const addToast = useCallback((message: string) => {
-    const id = toastId.current++;
-    setToasts(prev => [...prev, { id, message }]);
-    setTimeout(() => {
-      setToasts(currentToasts => currentToasts.filter(toast => toast.id !== id));
-    }, 3000);
-  }, []);
-
   useEffect(() => {
     const loadProducts = async () => {
       try {
@@ -119,37 +112,47 @@ const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       } catch (err: any) {
         const errorMessage = err.message || 'Failed to load products.';
         setError(errorMessage);
-        addToast(errorMessage);
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
     };
     loadProducts();
-  }, [addToast]);
+
+    const newsletterTimeout = setTimeout(() => {
+      if (!sessionStorage.getItem('newsletter_shown')) {
+        openModal('newsletter');
+        sessionStorage.setItem('newsletter_shown', 'true');
+      }
+    }, 5000);
+
+    return () => clearTimeout(newsletterTimeout);
+  }, []);
 
   const addToCart = useCallback((product: Product, size: string, color: string) => {
     setCart(prevCart => {
-      const existingItem = prevCart.find(item => item._id === product._id && item.size === size && item.color === color);
+      const cartItemId = `${product._id}-${size}-${color}`;
+      const existingItem = prevCart.find(item => item.cartItemId === cartItemId);
       if (existingItem) {
         return prevCart.map(item =>
-          item._id === product._id && item.size === size && item.color === color
+          item.cartItemId === cartItemId
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...prevCart, { ...product, quantity: 1, size, color }];
+      return [...prevCart, { ...product, quantity: 1, size, color, cartItemId }];
     });
-    addToast(`${product.name} has been added to your cart`);
-  }, [addToast]);
+    toast.info(`${product.name} has been added to your cart`);
+  }, []);
 
-  const removeFromCart = useCallback((productId: string) => {
-    setCart(prevCart => prevCart.filter(item => item._id !== productId));
+  const removeFromCart = useCallback((cartItemId: string) => {
+    setCart(prevCart => prevCart.filter(item => item.cartItemId !== cartItemId));
   }, []);
   
-  const updateCartQuantity = useCallback((productId: string, quantity: number) => {
+  const updateCartQuantity = useCallback((cartItemId: string, quantity: number) => {
       setCart(prevCart =>
           prevCart.map(item =>
-              item._id === productId ? { ...item, quantity: Math.max(1, quantity) } : item
+              item.cartItemId === cartItemId ? { ...item, quantity: Math.max(1, quantity) } : item
           ).filter(item => item.quantity > 0)
       );
   }, []);
@@ -157,42 +160,59 @@ const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const addToWishlist = useCallback((product: Product) => {
     setWishlist(prev => {
       if (prev.find(item => item._id === product._id)) {
-        addToast(`${product.name} is already in your wishlist`);
+        toast.warn(`${product.name} is already in your wishlist`);
         return prev;
       }
-      addToast(`${product.name} has been added to your wishlist`);
+      toast.info(`${product.name} has been added to your wishlist`);
       return [...prev, product];
     });
-  }, [addToast]);
+  }, []);
 
   const removeFromWishlist = useCallback((productId: string) => {
     setWishlist(prev => prev.filter(item => item._id !== productId));
   }, []);
+  
+  const login = useCallback(async (credentials: any) => {
+    const data = await loginUser(credentials);
+    const loggedInUser = { _id: data._id, name: data.name, email: data.email };
+    
+    const storedAddress = localStorage.getItem(`user-address-${loggedInUser._id}`);
+    const userWithAddress = storedAddress ? { ...loggedInUser, address: JSON.parse(storedAddress) } : loggedInUser;
+    
+    setToken(data.token);
+    setUser(userWithAddress);
+    
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(userWithAddress));
+    toast.info(`Welcome back, ${loggedInUser.name}!`);
 
-  const login = useCallback((token: string, user: User) => {
-    setToken(token);
-    setUser(user);
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-    addToast(`Welcome back, ${user.name}!`);
-  }, [addToast]);
+    try {
+        const userOrders = await fetchMyOrders(data.token);
+        setOrders(userOrders);
+    } catch (err: any) {
+        console.error("Failed to fetch orders on login:", err.message);
+        toast.error("Could not fetch your orders.");
+    }
+  }, []);
 
   const signup = useCallback(async (userData: any) => {
-      const { token, user } = await signupUser(userData);
-      setToken(token);
-      setUser(user);
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      addToast(`Welcome to DENFIT, ${user.name}!`);
-  }, [addToast]);
+      const data = await signupUser(userData);
+      const newUser = { _id: data._id, name: data.name, email: data.email };
+      setToken(data.token);
+      setUser(newUser);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(newUser));
+      toast.info(`Welcome to DENFIT, ${newUser.name}!`);
+  }, []);
 
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
+    setOrders([]);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    addToast("You have been logged out.");
-  }, [addToast]);
+    toast.info("You have been logged out.");
+  }, []);
 
   const openModal = useCallback((modal: ModalType, data?: Product | StaticPageType) => {
     if (modal === 'product' && data) setSelectedProduct(data as Product);
@@ -205,110 +225,106 @@ const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     setSelectedProduct(null);
     setStaticPage(null);
   }, []);
-
+  
   const fetchUserOrders = useCallback(async () => {
     if (!token) {
-      addToast("You must be logged in to view orders.");
+      toast.warn("You must be logged in to view orders.");
       openModal('login');
       return;
     }
     try {
       setLoading(true);
-      // const userOrders = await fetchMyOrders(token); // REAL API CALL
-      const userOrders = [ // MOCK DATA FOR DEMO
-          { _id: '176270', user: 'user123', orderItems: [{ name: 'Varsity Bomber', qty: 1, image: 'https://picsum.photos/id/103/500/500', price: 74.99, product: '2' }], shippingAddress: { address: 'aaaa', city: 'Lahore' }, paymentMethod: 'Cash on Delivery', totalPrice: 74.99, isPaid: false, isDelivered: false, createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), status: 'Confirmed' as const },
-          { _id: '176271', user: 'user123', orderItems: [{ name: 'Classic Denim Jeans', qty: 2, image: 'https://picsum.photos/id/201/500/500', price: 79.99, product: '3' }], shippingAddress: { address: 'bbbb', city: 'Karachi' }, paymentMethod: 'Visa', totalPrice: 159.98, isPaid: true, isDelivered: true, deliveredAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), status: 'Delivered' as const }
-      ];
+      const userOrders = await fetchMyOrders(token as string); 
       setOrders(userOrders);
       openModal('orders');
     } catch (err: any) {
       setError(err.message);
-      addToast(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [token, addToast, openModal]);
+  }, [token, openModal]);
 
-  const placeOrder = useCallback(async (orderDetails: any) => {
-    if (!token || !user) {
-      addToast("You must be logged in to place an order.");
+  const updateUserAddress = useCallback((address: ShippingAddress) => {
+    if (user) {
+        const updatedUser = { ...user, address };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        localStorage.setItem(`user-address-${user._id}`, JSON.stringify(address));
+        toast.info('Address saved successfully!');
+    }
+  }, [user]);
+
+  const placeOrder = useCallback(async (orderDetails: { shippingAddress: ShippingAddress, paymentMethod: string, customerDetails: { name: string, email: string, phone: string } }) => {
+    if (!token) {
+      toast.warn("You must be logged in to place an order.");
       openModal('login');
-      return;
+      throw new Error("User not logged in");
     }
-    try {
-      setLoading(true);
-      const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-      // MOCK order creation
-      const newOrder: Order = {
-        _id: `ord_${Date.now()}`,
-        user: user._id,
-        orderItems: cart.map(item => ({ name: item.name, qty: item.quantity, image: item.images[0], price: item.price, product: item._id })),
-        shippingAddress: orderDetails.shippingAddress,
-        paymentMethod: orderDetails.paymentMethod,
-        totalPrice: total,
-        isPaid: orderDetails.paymentMethod !== 'Cash on Delivery',
-        isDelivered: false,
-        createdAt: new Date().toISOString(),
-        status: 'Confirmed'
-      };
-      
-      setOrders(prevOrders => [newOrder, ...prevOrders]); // Add to history
-      setCart([]); // Clear cart
-      // We don't call closeModal here, CheckoutModal will do it.
-    } catch (err: any) {
-      setError(err.message);
-      addToast(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, user, cart, addToast, openModal]);
+    
+    updateUserAddress(orderDetails.shippingAddress);
+
+    const totalAmount = cart.reduce((acc, item) => acc + item.price * item.quantity, 0) + 5; // +5 for shipping
+
+    const orderData = {
+        items: cart,
+        totalAmount,
+        ...orderDetails
+    };
+    
+    const newOrder = await createOrder(orderData, token);
+    setOrders(prevOrders => [newOrder, ...prevOrders]);
+    setCart([]);
+  }, [token, cart, openModal, updateUserAddress]);
 
   const addReview = useCallback(async (productId: string, reviewData: { rating: number; comment: string; }) => {
-    if (!token || !user) {
-      addToast("You must be logged in to add a review.");
+    if (!token) {
+      toast.warn("You must be logged in to add a review.");
       openModal('login');
       return;
     }
     try {
-      const newReview: Review = { _id: `rev-${Date.now()}`, name: user.name, rating: reviewData.rating, comment: reviewData.comment, user: user._id, createdAt: new Date().toISOString() };
+      const newReview = await submitReview(productId, reviewData, token);
       setProducts(prevProducts => {
           const productIndex = prevProducts.findIndex(p => p._id === productId);
           if (productIndex === -1) return prevProducts;
-          const updatedProduct = { ...prevProducts[productIndex], reviews: [newReview, ...prevProducts[productIndex].reviews], numReviews: prevProducts[productIndex].numReviews + 1 };
+          
+          const updatedReviews = [newReview, ...prevProducts[productIndex].reviews];
+          const newRating = updatedReviews.reduce((acc, item) => acc + item.rating, 0) / updatedReviews.length;
+
+          const updatedProduct = { 
+            ...prevProducts[productIndex], 
+            reviews: updatedReviews, 
+            numReviews: updatedReviews.length,
+            rating: newRating
+          };
+
           const newProducts = [...prevProducts];
           newProducts[productIndex] = updatedProduct;
+          
           if (selectedProduct && selectedProduct._id === productId) {
               setSelectedProduct(updatedProduct);
           }
           return newProducts;
       });
-      addToast('Review submitted successfully!');
+      toast.info('Review submitted successfully!');
     } catch (err: any) {
       setError(err.message);
-      addToast(err.message);
+      toast.error(err.message);
     }
-  }, [token, user, selectedProduct, addToast, openModal]);
-
-  // FIX: Added staticPage to the context value and dependency array.
+  }, [token, selectedProduct, openModal]);
+  
   const value = useMemo(() => ({
-    products, cart, wishlist, user, token, activeModal, selectedProduct, staticPage, orders, loading, error, filter, toasts, currency, currencySymbol, setCurrency, convertCurrency, setFilter,
+    products, cart, wishlist, user, token, activeModal, selectedProduct, staticPage, orders, loading, error, filter, currency, currencySymbol, setCurrency, convertCurrency, setFilter,
     addToCart, removeFromCart, updateCartQuantity, addToWishlist, removeFromWishlist,
-    login, signup, logout, openModal, closeModal, fetchUserOrders, placeOrder, addReview, addToast
+    login, signup, logout, openModal, closeModal, fetchUserOrders, placeOrder, addReview, updateUserAddress
   }), [
-    products, cart, wishlist, user, token, activeModal, selectedProduct, staticPage, orders, loading, error, filter, toasts, currency, currencySymbol, convertCurrency,
+    products, cart, wishlist, user, token, activeModal, selectedProduct, staticPage, orders, loading, error, filter, currency, currencySymbol, convertCurrency,
     setFilter, addToCart, removeFromCart, updateCartQuantity, addToWishlist, removeFromWishlist,
-    login, signup, logout, openModal, closeModal, fetchUserOrders, placeOrder, addReview, addToast
+    login, signup, logout, openModal, closeModal, fetchUserOrders, placeOrder, addReview, updateUserAddress
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-};
-
-const Toast: React.FC<{ message: string }> = ({ message }) => {
-    return (
-        <div className="bg-denfit-dark text-white py-2 px-4 rounded-md shadow-lg animate-fade-in-up">
-            {message}
-        </div>
-    );
 };
 
 function App() {
@@ -320,7 +336,7 @@ function App() {
 }
 
 function MainApp() {
-  const { activeModal, closeModal, selectedProduct, toasts, staticPage } = useAppContext();
+  const { activeModal, closeModal, selectedProduct, staticPage, openModal } = useAppContext();
 
   return (
     <div className="bg-white text-gray-800 font-sans">
@@ -329,23 +345,32 @@ function MainApp() {
         <HomePage />
       </main>
       <Footer />
-      <div className="fixed bottom-6 right-6 z-50">
-          <a href="https://wa.me/1234567890" target="_blank" rel="noopener noreferrer" className="bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-transform hover:scale-110 flex items-center justify-center">
-              <WhatsAppIcon />
-          </a>
-      </div>
+      <WhatsAppWidget />
       
-      <div className="fixed bottom-24 right-6 z-50 space-y-2">
-          {toasts.map(toast => <Toast key={toast.id} message={toast.message} />)}
-      </div>
+      <ToastContainer
+        position="bottom-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
 
       {activeModal === 'login' && <LoginModal onClose={closeModal} />}
+      {activeModal === 'forgot_password' && <ForgotPasswordModal onClose={closeModal} onLoginOpen={() => {closeModal(); setTimeout(() => openModal('login'), 300)}} />}
       {activeModal === 'cart' && <CartModal onClose={closeModal} />}
       {activeModal === 'wishlist' && <WishlistModal onClose={closeModal} />}
       {activeModal === 'product' && selectedProduct && <ProductDetailModal product={selectedProduct} onClose={closeModal} />}
       {activeModal === 'checkout' && <CheckoutModal onClose={closeModal} />}
       {activeModal === 'orders' && <OrdersModal onClose={closeModal} />}
       {activeModal === 'static' && staticPage && <StaticContentModal page={staticPage} onClose={closeModal} />}
+      {activeModal === 'profile' && <ProfileModal onClose={closeModal} />}
+      {activeModal === 'brand_review' && <BrandReviewModal onClose={closeModal} />}
+      {activeModal === 'newsletter' && <NewsletterModal onClose={closeModal} />}
     </div>
   );
 }

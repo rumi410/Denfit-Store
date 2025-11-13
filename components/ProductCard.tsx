@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Product } from '../types.ts';
-import { HeartIcon } from './Icons.tsx';
-import { useAppContext } from '../App.tsx';
+import { Product } from '../types';
+import { HeartIcon } from './Icons';
+import { useAppContext } from '../App';
 
 const ProductCard: React.FC<{ product: Product }> = ({ product }) => {
     const { openModal, addToCart, addToWishlist, currencySymbol, convertCurrency } = useAppContext();
